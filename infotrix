@@ -1,0 +1,63 @@
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class currency_converter {
+
+    private static final String API_KEY = " https://exchangerate.host/";
+    private static final String BASE_URL = "https://api.apilayer.com/exchangerates_data/latest";
+
+    public static void main(String[] args) {
+        String fromCurrency = "USD";
+        String toCurrency = "EUR";
+        double amount = 100.0;
+
+        double convertedAmount = convertCurrency(fromCurrency, toCurrency, amount);
+        System.out.println(amount + " " + fromCurrency + " = " + convertedAmount + " " + toCurrency);
+    }
+
+    public static double convertCurrency(String fromCurrency, String toCurrency, double amount) {
+        try {
+            String apiUrl = BASE_URL + "?base=" + fromCurrency;
+            URL url = new URL(apiUrl);
+
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("apikey", API_KEY);
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String line;
+                StringBuilder response = new StringBuilder();
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+                reader.close();
+
+                // Parse JSON manually for exchange rate
+                String jsonResponse = response.toString();
+                Pattern pattern = Pattern.compile("\"" + toCurrency + "\":(\\d+\\.?\\d*)");
+                Matcher matcher = pattern.matcher(jsonResponse);
+                if (matcher.find()) {
+                    String rateSubstring = matcher.group(1);
+                    double exchangeRate = Double.parseDouble(rateSubstring);
+                    return amount * exchangeRate;
+                } else {
+                    System.err.println("Error: Unable to find exchange rate for " + toCurrency);
+                    return -1.0;
+                }
+            } else {
+                System.err.println("Error: Unable to fetch exchange rates. HTTP Response Code: " + responseCode);
+                return -1.0;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return -1.0;
+        }
+    }
+}
